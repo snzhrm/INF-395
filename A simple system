@@ -1,0 +1,115 @@
+import json
+from datetime import datetime
+
+# Define the file where lost and found data will be stored
+DATA_FILE = "lost_and_found.json"
+
+
+# Load lost and found items from the JSON file.
+def load_data():
+    try:
+        with open(DATA_FILE, "r") as file:
+            return json.load(file)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+# Save the list of lost and found items to the JSON file. The data is formatted with indentation for better readability.
+def save_data(data):
+    with open(DATA_FILE, "w") as file:
+        json.dump(data, file, indent=4)
+
+# Allow the user to report a found item. Collects item details (name, category, location) and assigns a unique ID.
+def report_item():
+    name = input("Enter item name: ")
+    category = input("Enter category: ")
+    location = input("Enter location found: ")
+    date_found = datetime.now().strftime("%Y-%m-%d ")  # Record the current date
+
+    data = load_data()  # Load existing data
+    item_id = len(data) + 1  # Assign a unique ID based on the number of existing items
+    data.append({"id": item_id, "name": name, "category": category, "location": location, "date_found": date_found,
+                 "claimed": False})  # Mark the item as unclaimed
+    save_data(data)  # Save updated data
+    print("Item reported successfully!")  # Confirm successful reporting
+
+# Allow users to search for lost items by name, category, or location. The search is case-insensitive and only returns unclaimed items.
+def search_items():
+    search_term = input("Search by name, category, or location: ").lower()
+    data = load_data()  # Load existing data
+
+    # Filter items that match the search term and are not claimed
+    results = [item for item in data if search_term in item["name"].lower() or
+               search_term in item["category"].lower() or
+               search_term in item["location"].lower() and not item["claimed"]]
+
+    if results:
+        print("Found items:")
+        # Display each matching item
+        for item in results:
+            print(
+                f"ID: {item['id']}, Name: {item['name']}, Category: {item['category']}, Location: {item['location']}, Date Found: {item['date_found']}")
+    else:
+        print("No matching items found.")
+
+# Display all unclaimed items from the lost and found list.
+def view_unclaimed():
+    data = load_data()  # Load existing data
+    results = [item for item in data if not item["claimed"]]  # Filter unclaimed items
+
+    if results:
+        print("Unclaimed items:")
+        # Display each unclaimed item
+        for item in results:
+            print(
+                f"ID: {item['id']}, Name: {item['name']}, Category: {item['category']}, Location: {item['location']}, Date Found: {item['date_found']}")
+    else:
+        print("No unclaimed items.")  # Inform the user if there are no unclaimed items
+
+# Allow users to claim a lost item by entering its ID.
+# The function updates the item's status to 'claimed' in the JSON file.
+def claim_item():
+    item_id = input("Enter the ID of the item to claim: ")  # Get item ID from the user
+    data = load_data()  # Load existing data
+
+    for item in data:
+        # Find the matching item that is not already claimed
+        if str(item["id"]) == item_id and not item["claimed"]:
+            item["claimed"] = True  # Mark the item as claimed
+            save_data(data)  # Save the updated data
+            print("Item successfully claimed!")  # Confirm the item has been claimed
+            return
+
+    print("Item not found or already claimed.")  # Inform the user if the item is invalid or already claimed
+
+# Main menu for the Lost & Found system.
+def main():
+    while True:
+        # Display menu options
+        print("\nLost & Found System")
+        print("1. Report a Found Item")
+        print("2. Search for a Lost Item")
+        print("3. View All Unclaimed Items")
+        print("4. Claim an Item")
+        print("5. Exit")
+
+        choice = input("Select an option: ")  # Get user choice
+
+        # Execute the corresponding function based on user input
+        if choice == "1":
+            report_item()
+        elif choice == "2":
+            search_items()
+        elif choice == "3":
+            view_unclaimed()
+        elif choice == "4":
+            claim_item()
+        elif choice == "5":
+            print("Exiting system. Goodbye!")  # Exit the program
+            break
+        else:
+            print("Invalid choice, please try again.")  # Handle invalid input
+
+
+# Run the program when the script is executed
+if __name__ == "__main__":
+    main()
