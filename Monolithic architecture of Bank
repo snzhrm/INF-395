@@ -1,0 +1,131 @@
+import sqlite3
+import json
+import tkinter as tk
+from tkinter import messagebox
+
+db_file = "bank.db"
+
+
+# Initialize database
+def init_db():
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS users (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        username TEXT UNIQUE NOT NULL,
+                        balance REAL DEFAULT 0.0,
+                        role TEXT CHECK(role IN ('client', 'superadmin')) NOT NULL
+                      )''')
+    conn.commit()
+    conn.close()
+
+
+# Client: Add account
+def add_client(username, balance=0.0):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO users (username, balance, role) VALUES (?, ?, 'client')", (username, balance))
+        conn.commit()
+        messagebox.showinfo("Success", "Client account added successfully")
+    except sqlite3.IntegrityError:
+        messagebox.showerror("Error", "Username already exists")
+    finally:
+        conn.close()
+
+
+# Client: Query balance
+def query_balance(username):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("SELECT balance FROM users WHERE username = ? AND role = 'client'", (username,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else "Client not found"
+
+
+# Super Admin: Modify client balance
+def modify_client(username, new_balance):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET balance = ? WHERE username = ? AND role = 'client'", (new_balance, username))
+    conn.commit()
+    conn.close()
+    messagebox.showinfo("Success", "Client balance updated")
+
+
+# Super Admin: Delete client
+def delete_client(username):
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE username = ? AND role = 'client'", (username,))
+    conn.commit()
+    conn.close()
+    messagebox.showinfo("Success", "Client deleted")
+
+
+# Super Admin: Export all client accounts
+def export_clients():
+    conn = sqlite3.connect(db_file)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, username, balance FROM users WHERE role = 'client'")
+    users = [{"id": row[0], "username": row[1], "balance": row[2]} for row in cursor.fetchall()]
+    conn.close()
+    with open("clients_export.json", "w") as f:
+        json.dump(users, f, indent=4)
+    messagebox.showinfo("Success", "Clients exported successfully")
+
+
+# GUI using Tkinter
+def create_gui():
+    root = tk.Tk()
+    root.title("Bank System")
+    root.geometry("400x300")
+
+    tk.Label(root, text="Username:").pack()
+    username_entry = tk.Entry(root)
+    username_entry.pack()
+
+    tk.Label(root, text="Balance:").pack()
+    balance_entry = tk.Entry(root)
+    balance_entry.pack()
+
+    def handle_add_client():
+        username = username_entry.get()
+        balance = balance_entry.get()
+        if username:
+            add_client(username, float(balance) if balance else 0.0)
+
+    tk.Button(root, text="Add Client", command=handle_add_client).pack()
+
+    def handle_query_balance():
+        username = username_entry.get()
+        if username:
+            balance = query_balance(username)
+            messagebox.showinfo("Balance", f"Balance for {username}: {balance}")
+
+    tk.Button(root, text="Query Balance", command=handle_query_balance).pack()
+
+    def handle_modify_balance():
+        username = username_entry.get()
+        balance = balance_entry.get()
+        if username and balance:
+            modify_client(username, float(balance))
+
+    tk.Button(root, text="Modify Balance", command=handle_modify_balance).pack()
+
+    def handle_delete_client():
+        username = username_entry.get()
+        if username:
+            delete_client(username)
+
+    tk.Button(root, text="Delete Client", command=handle_delete_client).pack()
+
+    tk.Button(root, text="Export Clients", command=export_clients).pack()
+
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    init_db()
+    create_gui()
